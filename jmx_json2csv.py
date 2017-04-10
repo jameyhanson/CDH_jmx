@@ -1,11 +1,9 @@
 '''
 Created on Mar 27, 2017
-
 Desc:  Convert *.json file exposed by Hadoop /jmx interface
        to *.csv file for easy review
 Refs: json module https://docs.python.org/3/library/json.html
     csv module    https://docs.python.org/3/library/csv.html
-
 @author: jphanso
 '''
 
@@ -16,9 +14,9 @@ from sys import exit
 def get_params():
     params = {}
     params['source_type'] = 'html'
-    params['source_string'] = 'http://nightly510-unsecure-1.gce.cloudera.com:20101/jmx'
-    params['service'] = 'NN'
-    params['out_file'] = '/Users/jamey/Downloads/dn_jmx.tsv'
+    params['source_string'] = 'http://nightly511-unsecure-3.gce.cloudera.com:8042/jmx'
+    params['service'] = 'NodeManager'
+    params['out_file'] = 'D:/Users/jphanso/Documents/JMX/nm_jmx.tsv'
     return  params
 
 def get_json_dict(source_type, source_string):
@@ -34,13 +32,20 @@ def get_json_dict(source_type, source_string):
     json_dict = json.load(json_string)
     return json_dict
 
+def write_line(line, out_file):
+    # each line begins with 'service' and ends with 'parameter' \t 'value'
+    #      columns between are the JSON hierarchy and are padded with tabs in
+    #      the middle
+    jmx_line = (line[0] + '\t'*(7 - len(line)) +
+                "\t".join(map(str,line[1:])) + '\n')    
+    out_file.write(jmx_line)
+
 def main():
     params = get_params()
     json_dict = get_json_dict(params['source_type'], params['source_string'])
     
     out_file = open(params['out_file'], 'w')
-    header = ('service\t' + 'key0\t' + 'key1\t' + 'key2\t' + 'key3\t' + 'key4\t'
-              + 'val2\n')
+    header = ('service\t' + 'key0\t' + 'key1\t' + 'key2\t' + 'key3\t'+ 'val2\n')
     out_file.write(header)
 
     for item in json_dict['beans']:
@@ -58,48 +63,43 @@ def main():
                         for item2 in value1:
                             if type(item2) == dict:
                                 if 'key' in item2:
-                                    line = ('A\t' + params['service'] + '\t' + param_group +
-                                            '\t' + str(key0) + '\t' + str(key1) + 
-                                            '\t' + str(item2['key']) + '\t' + 
-                                            str(item2['value']) + '\n')
-                                    out_file.write(line)
+                                    line = [params['service'], param_group,
+                                            str(key0), str(key1), 
+                                            str(item2['key']),  
+                                            str(item2['value'])]
+                                    write_line(line, out_file)
                     else:
-                        line = ('B\t' + params['service'] + '\t' + param_group + '\t' + 
-                                str(key0) + '\t' + str(key1) + '\t' + 
-                                str(value1) + '\n')
-                        out_file.write(line)
+                        line = [params['service'], param_group,
+                                str(key0), str(key1), str(value1)]
+                        write_line(line, out_file)
             elif type(value0) == list:
                 if all(isinstance(x, (int, bool, str)) for x in value0):
-                    line = ('C\t' +params['service'] + '\t' + param_group +
-                                    '\t' + key0 + '\t' + str(value0) + '\n')
-                    out_file.write(line)
+                    line = [params['service'], param_group, key0, str(value0)]
+                    write_line(line, out_file)
                 else:
                     for item1 in value0:
                         if type(item1) == dict:
                             if 'key' in item1:
-                                line = ('D\t' + params['service'] + '\t' + param_group + 
-                                        '\t' + str(key0) + '\t' + 
-                                        str(item1['key']) + '\t' + 
-                                        str(item1['value']) + '\n')
-                                out_file.write(line)
+                                line = [params['service'], param_group, 
+                                        str(key0), str(item1['key']), 
+                                        str(item1['value'])]
+                                write_line(line, out_file)
                             else:
-                                line = ('E\t' + params['service'] + '\t' + param_group +
-                                        '\t' + str(key0) + '\t' + str(item1) + '\n')
-                                out_file.write(line)
+                                line = [params['service'], param_group, 
+                                        str(key0), str(item1)]
+                                write_line(line, out_file)
                         else:
-                            line = ('F\t' +params['service'] + '\t' + param_group +
-                                    '\t' + str(key0) + '\t' + str(item1) + '\n')
-                            print(item1)
-                            out_file.write(line)
+                            line = [params['service'], param_group,
+                                    str(key0), tr(item1)]
+                            write_line(line, out_file)
             else:
                 if key0 != 'name':
-                    line = ('F\t' + params['service'] + '\t' + param_group + '\t' + 
-                            str(key0) + '\t' + str(value0) + '\n')
-                    out_file.write(line)
+                    line = [params['service'], param_group, str(key0),
+                            str(value0)]
+                    write_line(line, out_file)
 
     out_file.close()
     print('wrote file ', params['out_file'])
     
 if __name__ == '__main__': 
     main()
-
